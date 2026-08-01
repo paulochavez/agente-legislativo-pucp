@@ -1,0 +1,10 @@
+{
+  "framework": "nextjs",
+  "buildCommand": "npm run build",
+  "outputDirectory": ".next",
+  "functions": {
+    "src/app/api/chat/route.ts": {
+      "maxDuration": 60
+    }
+  }
+}

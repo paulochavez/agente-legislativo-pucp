@@ -1,0 +1,16 @@
+.env
+.env.local
+.env.*.local
+credenciales/*
+!credenciales/.gitkeep
+node_modules/
+.next/
+.vercel/
+coverage/
+*.log
+*.tsbuildinfo
+processed/*.jsonl
+processed/*.tmp
+processed/checkpoint.json
+scripts/__pycache__/
+__pycache__/
