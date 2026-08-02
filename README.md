@@ -1,21 +1,43 @@
-# Legisla: agente Grafo + RAG
+# Legisla
 
-Caso de estudio 1 del curso E-Government de la PUCP. El agente recibe preguntas en español sobre los proyectos de ley PL 14705 a PL 14859 y decide entre dos herramientas:
+Asistente legislativo desarrollado para el Caso de estudio 1 del curso **E-Government de la PUCP**.
 
-- **Grafo Neo4j:** personas, emisores, destinatarios, cargos, relaciones y conteos.
-- **RAG:** contenido, finalidad, artículos, fundamentos y temas presentes en los PDF.
+**Demo:** https://agente-legislativo-pucp.vercel.app
 
-La respuesta indica la herramienta utilizada y cita sus fuentes como `[PL 14712]` o `[PL 14712, p. 4]`.
+**Autor:** Paulo Chávez Condori
+
+## Objetivo
+
+Legisla permite consultar en lenguaje natural proyectos de ley del Congreso del Perú. El sistema responde en español, selecciona automáticamente la fuente de información apropiada y presenta citas que permiten identificar el proyecto consultado.
+
+La aplicación atiende dos tipos de preguntas:
+
+- Consultas relacionales sobre autores, emisores, destinatarios, cargos y documentos.
+- Consultas de contenido sobre objetivos, artículos, fundamentos, temas y exposiciones de motivos.
+
+## Ejemplos
+
+- `¿Quién emitió el PL 14712?`
+- `¿A quién está dirigido el PL 14715?`
+- `¿Qué proyectos hablan de educación?`
+- `Resume la finalidad del PL 14710.`
 
 ## Arquitectura
 
 ```text
-Pregunta -> Router LLM -> tool_grafo -> Cypher de solo lectura -> Neo4j Aura
-                       -> tool_rag   -> embedding -> indice vectorial -> fragmentos
-                                                                    -> respuesta citada
+Pregunta
+   |
+   v
+Agente enrutador
+   |-- tool_grafo --> Cypher de solo lectura --> Neo4j Aura
+   |
+   `-- tool_rag ----> embedding --> índice vectorial --> fragmentos
+                                                        |
+                                                        v
+                                               respuesta con citas
 ```
 
-Neo4j conserva el grafo estructurado y el índice vectorial:
+Neo4j almacena tanto la información estructurada como los fragmentos documentales:
 
 ```text
 (:Persona)-[:EMITE]->(:Documento)
@@ -26,32 +48,48 @@ Neo4j conserva el grafo estructurado y el índice vectorial:
 
 ## Datos
 
-El corpus fuente no se duplica en este repositorio. Se lee desde:
+El corpus comprende **155 proyectos de ley**, desde el PL 14705 hasta el PL 14859.
 
-```text
-../ejemplo_clase/proyecto_ley/_indice.csv
-../ejemplo_clase/proyecto_ley/PL_*.pdf
+- 1,034 páginas procesadas.
+- 1,016 fragmentos indexados.
+- Extracción de texto nativo y OCR selectivo para páginas escaneadas.
+- Embeddings de 2,048 dimensiones.
+- Metadatos de proyecto, título, fecha, estado, autores y páginas.
+
+El pipeline de procesamiento e ingesta es reanudable e idempotente.
+
+## Tecnologías
+
+- Next.js 15 y React 19.
+- TypeScript.
+- Neo4j Aura y búsqueda vectorial.
+- OpenRouter para enrutamiento, embeddings y generación de respuestas.
+- Python y PyMuPDF para preparación documental.
+- Vercel para despliegue.
+
+## Ejecución local
+
+Requisitos:
+
+- Node.js 20 o posterior.
+- Una instancia Neo4j Aura previamente poblada.
+
+Las variables requeridas se encuentran documentadas en `.env.example`. Deben configurarse en un archivo local `.env.local`, excluido del control de versiones.
+
+```bash
+npm install
+npm run typecheck
+npm run build
+npm run dev
 ```
 
-Contiene 155 proyectos, del PL 14705 al PL 14859. El pipeline extrae texto por página y aplica OCR con OpenRouter únicamente cuando una página tiene menos de 50 caracteres útiles. Tanto el procesamiento como la ingesta son reanudables e idempotentes.
+La aplicación estará disponible en `http://localhost:3000`.
 
-## Configuración local
+Como establece el enunciado, la clave de OpenRouter utilizada para realizar preguntas se introduce desde la interfaz y no se almacena en la aplicación.
 
-Copiar `.env.example` como `.env.local` y completar:
+## Preparación de datos
 
-```dotenv
-NEO4J_URI=neo4j+s://xxxxxxxx.databases.neo4j.io
-NEO4J_USER=neo4j
-NEO4J_PASS=tu-contrasena
-NEO4J_DATABASE=neo4j
-OPENROUTER_API_KEY=sk-or-v1-xxxxxxxx
-```
-
-`.env.local` está excluido por `.gitignore`. `OPENROUTER_API_KEY` se utiliza solo para preparar los datos y no debe configurarse en Vercel. En la aplicación, cada evaluador introduce su propia clave.
-
-## Preparar los datos
-
-Requiere Python 3.11 o posterior.
+Los scripts de procesamiento requieren Python 3.11 o posterior:
 
 ```bash
 python -m pip install -r requirements.txt
@@ -61,60 +99,34 @@ python scripts/ingest.py
 python scripts/evaluate.py
 ```
 
-`copy_graph.py` permite replicar la instancia usada en clase si sigue disponible. Si no está disponible, `build_graph.py` reconstruye los nodos y relaciones desde el CSV y las portadas de los PDF. Los checkpoints quedan en `processed/` y permiten repetir cada comando sin empezar desde cero. Para hacer una prueba limitada:
-
-```bash
-python scripts/process_corpus.py --limite 3
-```
-
-## Aplicación web
-
-Requiere Node.js 20 o posterior. En este equipo se utilizó la distribución ZIP oficial de Node 22, sin instalación ni permisos de administrador.
-
-```bash
-npm install
-npm run typecheck
-npm run build
-npm run dev
-```
-
-Abrir `http://localhost:3000`, introducir una API key de OpenRouter y probar:
-
-- `¿Quién emitió el PL 14712?` debe elegir **Grafo**.
-- `¿Qué proyectos hablan de educación?` debe elegir **RAG**.
+Los datos ya se encuentran poblados en la instancia utilizada por la demostración desplegada.
 
 ## Seguridad
 
-- La clave OpenRouter del visitante permanece en memoria en la pestaña y no se almacena.
-- La sesión Neo4j de la aplicación usa modo de acceso de lectura.
-- El Cypher generado se valida antes de ejecutarse.
-- Se rechazan escrituras, procedimientos, comentarios, parámetros generados y sentencias múltiples.
-- Las consultas tienen timeout y límite efectivo de filas.
-- Los errores públicos no incluyen credenciales ni detalles internos.
+- Las sesiones de consulta a Neo4j utilizan modo de lectura.
+- El Cypher generado se valida antes de su ejecución.
+- Se bloquean operaciones de escritura y sentencias múltiples.
+- Las consultas tienen límites de tiempo y cantidad de filas.
+- Los errores públicos no muestran detalles internos.
+- Los archivos de entorno y artefactos locales están excluidos del repositorio.
 
-Para defensa adicional, la cuenta Neo4j configurada en Vercel debe tener únicamente permisos de lectura si el plan de Aura lo permite.
+## Verificación
 
-## Despliegue en Vercel
+El proyecto fue validado mediante:
 
-Importar el repositorio como proyecto Next.js y configurar únicamente:
-
-```text
-NEO4J_URI
-NEO4J_USER
-NEO4J_PASS
-NEO4J_DATABASE
-```
-
-Después del despliegue, verificar `/api/schema` y las dos preguntas de prueba. Los datos deben estar poblados previamente en Aura; Vercel no procesa PDFs durante el build.
+- Comprobación estricta de TypeScript.
+- Build de producción de Next.js.
+- Auditoría de dependencias sin vulnerabilidades conocidas.
+- Consultas de integridad sobre documentos, fragmentos y embeddings.
+- Pruebas funcionales de rutas relacionales y documentales.
 
 ## Estructura
 
 ```text
-scripts/                 Extracción, OCR, copia del grafo, ingesta y evaluación
-src/app/api/chat/        Endpoint del agente
-src/app/api/schema/      Estado de Aura e índice vectorial
-src/lib/router.ts        Decisión Grafo/RAG
-src/lib/graph-tool.ts    Generación y ejecución segura de Cypher
-src/lib/rag-tool.ts      Retrieval vectorial y respuesta con citas
-processed/               Checkpoints locales ignorados por Git
+scripts/                 Procesamiento, OCR, grafo, ingesta y evaluación
+src/app/api/chat/        Endpoint principal del asistente
+src/app/api/schema/      Estado de la base y del índice vectorial
+src/lib/router.ts        Selección automática de herramienta
+src/lib/graph-tool.ts    Consultas relacionales seguras
+src/lib/rag-tool.ts      Recuperación documental y citas
 ```
