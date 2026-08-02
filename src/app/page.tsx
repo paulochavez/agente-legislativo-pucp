@@ -25,17 +25,11 @@ interface Message {
   error?: boolean;
 }
 
-interface SchemaInfo {
-  nodes: { labels: string[]; total: number }[];
-  relationships: { type: string; total: number }[];
-  vectorIndex: { state?: string };
-}
-
 const EXAMPLES = [
-  { mode: "graph" as const, text: "¿Quién emitió el PL 14712?" },
-  { mode: "rag" as const, text: "¿Qué proyectos hablan de educación?" },
-  { mode: "graph" as const, text: "¿A quién está dirigido el PL 14715?" },
-  { mode: "rag" as const, text: "Resume la finalidad del PL 14710." },
+  "¿Quién emitió el PL 14712?",
+  "¿Qué proyectos hablan de educación?",
+  "¿A quién está dirigido el PL 14715?",
+  "Resume la finalidad del PL 14710.",
 ];
 
 export default function Home() {
@@ -44,25 +38,11 @@ export default function Home() {
   const [messages, setMessages] = useState<Message[]>([]);
   const [input, setInput] = useState("");
   const [loading, setLoading] = useState(false);
-  const [schema, setSchema] = useState<SchemaInfo | null>(null);
   const endRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     endRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages, loading]);
-
-  useEffect(() => {
-    if (!ready) return;
-    fetch("/api/schema")
-      .then(async (response) => {
-        if (!response.ok) throw new Error("schema");
-        return response.json();
-      })
-      .then((result) => {
-        if (result.ok) setSchema(result);
-      })
-      .catch(() => setSchema(null));
-  }, [ready]);
 
   async function send(question: string) {
     const text = question.trim();
@@ -110,9 +90,9 @@ export default function Home() {
         <section className="access-card">
           <div className="brand-mark">L</div>
           <p className="eyebrow">E-Government · PUCP</p>
-          <h1>Preguntas legislativas, con evidencia.</h1>
+          <h1>Comprende las leyes que pueden cambiar el país.</h1>
           <p className="access-copy">
-            El agente decide si necesita relaciones del grafo o contenido de los proyectos de ley.
+            Consulta en lenguaje sencillo los proyectos de ley del Congreso del Perú y recibe respuestas respaldadas por sus documentos.
           </p>
           <form
             onSubmit={(event) => {
@@ -132,7 +112,8 @@ export default function Home() {
             />
             <button type="submit" disabled={!apiKey.trim()}>Abrir agente</button>
           </form>
-          <p className="privacy-note">La clave permanece en esta pestaña y se envía solo a OpenRouter.</p>
+          <p className="privacy-note">La clave se utiliza solo durante esta sesión y no queda almacenada.</p>
+          <p className="maker-note">Desarrollado por Paulo Chávez Condori · PUCP</p>
         </section>
       </main>
     );
@@ -143,46 +124,43 @@ export default function Home() {
       <aside className="rail">
         <header className="brand">
           <div className="brand-mark small">L</div>
-          <div><strong>Legisla</strong><span>Agente documental</span></div>
+          <div><strong>Legisla</strong><span>Asistente legislativo</span></div>
         </header>
-        <section className="status-card">
-          <p className="section-label">Base de conocimiento</p>
-          <div className="status-row"><span>Grafo Aura</span><b className={schema ? "online" : "muted"}>{schema ? "Activo" : "Verificando"}</b></div>
-          <div className="status-row"><span>Índice RAG</span><b className={schema?.vectorIndex?.state === "ONLINE" ? "online" : "muted"}>{schema?.vectorIndex?.state === "ONLINE" ? "Activo" : "Pendiente"}</b></div>
-          {schema && <p className="corpus-count">{schema.nodes.reduce((total, node) => total + node.total, 0).toLocaleString("es-PE")} nodos conectados</p>}
+        <section className="about-card">
+          <p className="section-label">¿Qué es Legisla?</p>
+          <p>Un asistente para explorar proyectos de ley del Congreso sin tener que revisar documentos extensos.</p>
+          <ul>
+            <li>Conoce autores y destinatarios</li>
+            <li>Encuentra proyectos por tema</li>
+            <li>Resume objetivos y fundamentos</li>
+          </ul>
         </section>
         <section className="examples">
-          <p className="section-label">Prueba una pregunta</p>
+          <p className="section-label">Preguntas para comenzar</p>
           {EXAMPLES.map((example) => (
-            <button key={example.text} onClick={() => setInput(example.text)}>
-              <span className={`tool-dot ${example.mode}`} />{example.text}
+            <button key={example} onClick={() => setInput(example)}>
+              <span>→</span>{example}
             </button>
           ))}
         </section>
-        <footer>Corpus: PL 14705-14859</footer>
+        <footer><strong>Desarrollado por Paulo Chávez Condori</strong><span>E-Government · PUCP</span></footer>
       </aside>
 
       <section className="conversation">
-        <header className="mobile-header"><strong>Legisla</strong><span>Grafo + RAG</span></header>
+        <header className="mobile-header"><strong>Legisla</strong><span>Por Paulo Chávez · PUCP</span></header>
         <div className="messages" aria-live="polite">
           {messages.length === 0 && (
             <section className="welcome">
-              <p className="eyebrow">155 proyectos de ley · junio-julio 2026</p>
-              <h2>¿Qué necesitas investigar?</h2>
-              <p>Pregunta por autores y relaciones, o explora el contenido y los fundamentos de cada proyecto.</p>
-              <div className="route-legend">
-                <span><i className="tool-dot graph" />Grafo para relaciones</span>
-                <span><i className="tool-dot rag" />RAG para contenido</span>
+              <p className="eyebrow">Proyectos de ley del Congreso del Perú</p>
+              <h2>Entiende una propuesta en pocos minutos.</h2>
+              <p>Pregunta quién la presentó, a quién está dirigida, qué propone o cuáles son sus principales fundamentos. Cada respuesta incluye la fuente consultada.</p>
+              <div className="welcome-prompts">
+                {EXAMPLES.slice(0, 2).map((example) => <button key={example} onClick={() => void send(example)}>{example}<span>→</span></button>)}
               </div>
             </section>
           )}
           {messages.map((message, index) => (
             <article key={index} className={`message ${message.role} ${message.error ? "error" : ""}`}>
-              {message.role === "assistant" && message.mode && (
-                <div className={`route-badge ${message.mode}`}>
-                  <span className={`tool-dot ${message.mode}`} />{message.mode === "graph" ? "Consultó el grafo" : "Consultó documentos"}
-                </div>
-              )}
               <div className="bubble">{message.content}</div>
               {message.sources && message.sources.length > 0 && (
                 <div className="sources">
@@ -200,7 +178,7 @@ export default function Home() {
               {message.data?.rows && message.data.rows.length > 0 && <ResultTable rows={message.data.rows} />}
             </article>
           ))}
-          {loading && <article className="message assistant"><div className="route-badge thinking">El agente está decidiendo</div><div className="typing"><i /><i /><i /></div></article>}
+          {loading && <article className="message assistant"><div className="thinking-label">Buscando en los proyectos de ley</div><div className="typing"><i /><i /><i /></div></article>}
           <div ref={endRef} />
         </div>
         <form
