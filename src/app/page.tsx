@@ -1,8 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-
-type Mode = "graph" | "rag";
+import ReactMarkdown from "react-markdown";
 
 interface Source {
   citation: string;
@@ -14,7 +13,6 @@ interface Source {
 interface Message {
   role: "user" | "assistant";
   content: string;
-  mode?: Mode;
   sources?: Source[];
   error?: boolean;
 }
@@ -59,7 +57,6 @@ export default function Home() {
         {
           role: "assistant",
           content: result.answer,
-          mode: result.mode,
           sources: result.sources,
         },
       ]);
@@ -154,7 +151,11 @@ export default function Home() {
           )}
           {messages.map((message, index) => (
             <article key={index} className={`message ${message.role} ${message.error ? "error" : ""}`}>
-              <div className="bubble">{message.content}</div>
+              <div className="bubble">
+                {message.role === "assistant" && !message.error
+                  ? <ReactMarkdown>{message.content}</ReactMarkdown>
+                  : message.content}
+              </div>
               {message.sources && message.sources.length > 0 && (
                 <div className="sources">
                   <strong>Fuentes</strong>
