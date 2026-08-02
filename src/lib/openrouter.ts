@@ -18,47 +18,86 @@ async function postOpenRouter(
   body: JsonObject,
   timeoutMs: number,
 ): Promise<unknown> {
-  const controller = new AbortController();
-  const timeout = setTimeout(() => controller.abort(), timeoutMs);
+  const deadline = Date.now() + timeoutMs;
+  const attempts = 3;
 
-  try {
-    const response = await fetch(`${OPENROUTER_URL}${path}`, {
-      method: "POST",
-      headers: {
-        Authorization: `Bearer ${apiKey}`,
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify(body),
-      signal: controller.signal,
-      cache: "no-store",
-    });
+  for (let attempt = 0; attempt < attempts; attempt += 1) {
+    const remaining = deadline - Date.now();
+    if (remaining <= 0) break;
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), remaining);
 
-    if (!response.ok) {
+    try {
+      const response = await fetch(`${OPENROUTER_URL}${path}`, {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${apiKey}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify(body),
+        signal: controller.signal,
+        cache: "no-store",
+      });
+
+      if (response.ok) return await response.json();
+      if (response.status === 401 || response.status === 403) {
+        throw new AppError(
+          "OPENROUTER_INVALID_KEY",
+          "La API key de OpenRouter no es válida o no tiene permisos.",
+          401,
+        );
+      }
+      if (response.status === 402) {
+        throw new AppError(
+          "OPENROUTER_CREDITS",
+          "La cuenta de OpenRouter no tiene créditos disponibles.",
+          402,
+        );
+      }
+
+      const retryable = response.status === 429 || response.status >= 500;
+      if (retryable && attempt + 1 < attempts) {
+        await delay(Math.min(400 * 2 ** attempt, Math.max(0, deadline - Date.now())));
+        continue;
+      }
+      if (response.status === 429) {
+        throw new AppError(
+          "OPENROUTER_RATE_LIMIT",
+          "OpenRouter alcanzó el límite temporal de solicitudes. Intenta nuevamente en unos minutos.",
+          429,
+        );
+      }
       throw new AppError(
         "OPENROUTER_ERROR",
-        "El servicio de inteligencia artificial no pudo responder.",
+        "OpenRouter no pudo completar la solicitud. Intenta nuevamente.",
         502,
       );
-    }
-
-    return await response.json();
-  } catch (error) {
-    if (error instanceof AppError) throw error;
-    if (error instanceof Error && error.name === "AbortError") {
+    } catch (error) {
+      if (error instanceof AppError) throw error;
+      if (error instanceof Error && error.name === "AbortError") break;
+      if (attempt + 1 < attempts) {
+        await delay(Math.min(400 * 2 ** attempt, Math.max(0, deadline - Date.now())));
+        continue;
+      }
       throw new AppError(
-        "OPENROUTER_TIMEOUT",
-        "El servicio de inteligencia artificial excedió el tiempo de espera.",
-        504,
+        "OPENROUTER_UNAVAILABLE",
+        "La conexión con OpenRouter falló temporalmente. Intenta nuevamente.",
+        502,
       );
+    } finally {
+      clearTimeout(timeout);
     }
-    throw new AppError(
-      "OPENROUTER_UNAVAILABLE",
-      "No se pudo contactar al servicio de inteligencia artificial.",
-      502,
-    );
-  } finally {
-    clearTimeout(timeout);
   }
+
+  throw new AppError(
+    "OPENROUTER_TIMEOUT",
+    "OpenRouter excedió el tiempo de espera. Intenta nuevamente.",
+    504,
+  );
+}
+
+function delay(milliseconds: number): Promise<void> {
+  return new Promise((resolve) => setTimeout(resolve, milliseconds));
 }
 
 function chatContent(data: unknown): string {
