@@ -87,14 +87,6 @@ button { cursor: pointer; }
 .sources strong { display: block; margin-bottom: 8px; color: var(--muted); font-size: 10px; letter-spacing: .12em; text-transform: uppercase; }
 .sources div { display: flex; flex-wrap: wrap; gap: 7px; }
 .sources span { padding: 5px 8px; color: var(--forest); background: var(--white); border: 1px solid var(--line); font: 600 12px "DM Sans", sans-serif; }
-details { margin-top: 9px; padding: 11px 15px; border: 1px solid var(--line); background: #e6e4dc; }
-summary { color: var(--forest); font-size: 12px; font-weight: 700; cursor: pointer; }
-pre { overflow-x: auto; padding: 14px; color: #d5eadf; background: #16271f; font: 12px/1.6 Consolas, monospace; white-space: pre-wrap; }
-details p { color: var(--muted); font-size: 12px; }
-.table-wrap { margin-top: 9px; overflow-x: auto; border: 1px solid var(--line); }
-table { width: 100%; border-collapse: collapse; background: var(--white); font-size: 12px; }
-th, td { padding: 10px 12px; border-bottom: 1px solid var(--line); text-align: left; vertical-align: top; }
-th { color: var(--forest); background: var(--panel); text-transform: uppercase; letter-spacing: .05em; }
 .typing { width: 72px; display: flex; gap: 6px; padding: 16px 20px; background: var(--white); border: 1px solid var(--line); }
 .typing i { width: 7px; height: 7px; border-radius: 50%; background: var(--forest); animation: pulse 1s infinite alternate; }
 .typing i:nth-child(2) { animation-delay: .2s; }

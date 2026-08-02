@@ -16,12 +16,6 @@ interface Message {
   content: string;
   mode?: Mode;
   sources?: Source[];
-  data?: {
-    cypher?: string;
-    explanation?: string;
-    rows?: Record<string, unknown>[];
-    count?: number;
-  };
   error?: boolean;
 }
 
@@ -67,7 +61,6 @@ export default function Home() {
           content: result.answer,
           mode: result.mode,
           sources: result.sources,
-          data: result.data,
         },
       ]);
     } catch (error) {
@@ -168,14 +161,6 @@ export default function Home() {
                   <div>{message.sources.map((source) => <span key={source.citation}>{source.citation}</span>)}</div>
                 </div>
               )}
-              {message.data?.cypher && (
-                <details>
-                  <summary>Ver consulta Cypher</summary>
-                  <pre>{message.data.cypher}</pre>
-                  {message.data.explanation && <p>{message.data.explanation}</p>}
-                </details>
-              )}
-              {message.data?.rows && message.data.rows.length > 0 && <ResultTable rows={message.data.rows} />}
             </article>
           ))}
           {loading && <article className="message assistant"><div className="thinking-label">Buscando en los proyectos de ley</div><div className="typing"><i /><i /><i /></div></article>}
@@ -194,16 +179,4 @@ export default function Home() {
       </section>
     </main>
   );
-}
-
-function ResultTable({ rows }: { rows: Record<string, unknown>[] }) {
-  const columns = Object.keys(rows[0]);
-  return (
-    <div className="table-wrap"><table><thead><tr>{columns.map((column) => <th key={column}>{column}</th>)}</tr></thead><tbody>{rows.slice(0, 20).map((row, index) => <tr key={index}>{columns.map((column) => <td key={column}>{formatCell(row[column])}</td>)}</tr>)}</tbody></table></div>
-  );
-}
-
-function formatCell(value: unknown): string {
-  if (value === null || value === undefined) return "-";
-  return typeof value === "object" ? JSON.stringify(value) : String(value);
 }
